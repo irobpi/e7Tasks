@@ -1,10 +1,10 @@
-import { Button,VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { Button, HorizontalBox, LineEdit } from "std-widgets.slint";
 
 export component AppWindow inherits Window {
     title: "Counter";
-    preferred-width: 240px;
+    preferred-width: 320px;
     preferred-height: 72px;
-    min-width: 210px;
+    min-width: 270px;
     min-height: 48px;
 
     //Properties
@@ -14,14 +14,15 @@ export component AppWindow inherits Window {
     callback request-increase-value();
 
     HorizontalBox {
-        spacing: 40px;
-        Text {
+        LineEdit {
+            horizontal-stretch: 1;
             text: "\{root.counter}";
             horizontal-alignment: center;
-            vertical-alignment: center;
+            read-only: true;
         }
 
         Button {
+            horizontal-stretch: 1;
             text: "Count";
             clicked => {
                 root.request-increase-value();
