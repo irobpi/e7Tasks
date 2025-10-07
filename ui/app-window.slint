@@ -1,17 +1,103 @@
-import { Button,VerticalBox } from "std-widgets.slint";
+import { Button,VerticalBox, ComboBox, LineEdit, HorizontalBox } from "std-widgets.slint";
 
 export component AppWindow inherits Window {
-    in-out property <int> counter: 42;
-    callback request-increase-value();
+    title: "Book Flight";
+    preferred-width: 480px;
+    preferred-height: 360px;
+
+    //Properties
+    in-out property <string> start:"27.03.2014";
+    in-out property <string> end:"27.03.2014";
+    in property <bool> start-eligible:true;
+    in property <bool> end-eligible:true;
+    in property <bool> flight-eligible:true;
+    in property <string> flight-info:"show flight information";
+    out property <bool> is-one-way:true;
+
+    //Callbacks
+    callback start-changed(string);
+    callback end-changed(string);
+    callback check-flight-eligible();
+    callback book-flight();
+
+    //Body
     VerticalBox {
-        Text {
-            text: "Counter: \{root.counter}";
+        flight-selector := ComboBox {
+            model: ["one-way flight", "return flight"];
+            current-value: "one-way flight";
+            selected(current-value) => {
+                if current-value == "one-way flight" {
+                    is-one-way = true
+                } else {
+                    is-one-way = false
+                }
+                check-flight-eligible();
+            }
         }
 
-        Button {
-            text: "Increase value";
+        HorizontalBox {
+            start-edit := LineEdit {
+                text: "\{start}";
+                edited(text) => {
+                    start-changed(text);
+                    start = text;
+                    check-flight-eligible();
+                }
+            }
+
+            st_eligible_text := Text {
+                text: start-eligible ? "☑" : "❌";
+                vertical-alignment: center;
+            }
+        }
+
+        HorizontalBox {
+            end-edit := LineEdit {
+                text: "\{end}";
+                enabled: flight_selector.current-value == "return flight";
+                edited(text) => {
+                    end-changed(text);
+                    end = text;
+                    check-flight-eligible();
+                }
+            }
+
+            Text {
+                text: end-eligible ? "☑" : "❌";
+                vertical-alignment: center;
+            }
+        }
+
+        popup := PopupWindow {
+            Rectangle {
+                height: 100%;
+                width: 100%;
+                background: gray;
+            }
+
+            x: (root.width - self.width) / 2;
+            y: 20px;
+            height: 150px;
+            width: 210px;
+
+            Text {
+                height: 50px;
+                vertical-alignment: center;
+                horizontal-alignment: center;
+                text: "\{root.flight-info}";
+            }
+        }
+
+        book-btn := Button {
+            text: "Book";
+            enabled: start-eligible ? flight-eligible : false;
             clicked => {
-                root.request-increase-value();
+                if flight-eligible {
+                    book-flight();
+                    if flight-eligible {
+                        popup.show();
+                    }
+                }
             }
         }
     }
