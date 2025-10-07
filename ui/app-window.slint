@@ -7,12 +7,21 @@ export component AppWindow inherits Window {
     min-width: 450px;
     min-height: 48px;
 
+    //Properties
+    in-out property <int> celsius:0;
+    in-out property <int> fahrenheit:32;
+
+    //Callbacks
+    callback celsius_changed(string);
+    callback fahrenheit_changed(string);
+
     HorizontalBox {
         celsius_edit := LineEdit {
-            text: "0";
+            text: "\{celsius}";
             horizontal-alignment: center;
             edited(text) => {
-                fahrenheit_edit.text = Math.round(text.to-float() * 9.0 / 5.0 + 32);
+                celsius_changed(text);
+                fahrenheit_edit.text = fahrenheit;
             }
         }
 
@@ -23,10 +32,11 @@ export component AppWindow inherits Window {
         }
 
         fahrenheit_edit := LineEdit {
-            text: "32";
+            text: "\{fahrenheit}";
             horizontal-alignment: center;
             edited(text) => {
-                celsius_edit.text = Math.round((text.to-float() - 32) * 5.0 / 9.0);
+                fahrenheit_changed(text);
+                celsius_edit.text = celsius;
             }
         }
 
