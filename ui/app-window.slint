@@ -1,17 +1,78 @@
-import { Button,VerticalBox } from "std-widgets.slint";
+import { Button,VerticalBox, HorizontalBox, LineEdit, ProgressIndicator, Slider } from "std-widgets.slint";
 
 export component AppWindow inherits Window {
-    in-out property <int> counter: 42;
-    callback request-increase-value();
+    title: "Timer";
+    preferred-width: 640px;
+    preferred-height: 320px;
+
+    //Properties
+    in-out property <float> elapsed: 0.0;
+    in-out property <float> duration: 10.0;
+
+    timer := Timer {
+        interval: 0.1s;
+        running: true;
+        triggered => {
+            if elapsed < duration {
+                elapsed += 0.1;
+            } else {
+                self.running = false
+            }
+        }
+    }
+
+    //
     VerticalBox {
+        HorizontalBox {
+            Text {
+                text: "Elapsed Time:";
+                vertical-alignment: center;
+                font-size: 12px;
+            }
+
+            ProgressIndicator {
+                progress: root.elapsed / root.duration;
+            }
+        }
+
         Text {
-            text: "Counter: \{root.counter}";
+            text: "\{root.elapsed}s";
+            vertical-alignment: center;
+            font-size: 12px;
+        }
+
+        HorizontalBox {
+            Text {
+                text: "Duration:";
+                vertical-alignment: center;
+            }
+
+            slider := Slider {
+                value: root.duration;
+                minimum: 1;
+                maximum: 100;
+                step: 0.1;
+                changed(value) => {
+                    root.duration = value;
+                    if root.elapsed < root.duration {
+                        timer.running = true;
+                    }
+                }
+            }
+
+            Text {
+                text: "\{root.duration}s";
+                vertical-alignment: center;
+            }
         }
 
         Button {
-            text: "Increase value";
+            text: "Reset";
             clicked => {
-                root.request-increase-value();
+                root.elapsed = 0.0;
+                root.duration = 10.0;
+                slider.value = root.duration;
+                timer.running = true;
             }
         }
     }
