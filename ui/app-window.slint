@@ -1,17 +1,89 @@
-import { Button,VerticalBox } from "std-widgets.slint";
+import { Button,VerticalBox, HorizontalBox, LineEdit, StandardListView } from "std-widgets.slint";
 
 export component AppWindow inherits Window {
-    in-out property <int> counter: 42;
-    callback request-increase-value();
+    title: "CRUD";
+    preferred-width: 640px;
+    preferred-height: 120px;
+
+    //Properties
+    in-out property <[StandardListViewItem]> items;
+    out property <string> filter-prefix;
+
+    //Callbacks
+    callback create-clicked(string, string, string);
+    callback update-clicked(StandardListViewItem, string, string, string);
+    callback delete-clicked(StandardListViewItem, string);
+    callback filter-triggered(string);
+
     VerticalBox {
-        Text {
-            text: "Counter: \{root.counter}";
+        HorizontalBox {
+            Text {
+                text: "Filter prefix: ";
+                vertical-alignment: center;
+                horizontal-alignment: left;
+            }
+
+            filter-edit := LineEdit {
+                placeholder-text: "prefix";
+                edited(text) => {
+                    root.filter-prefix = text;
+                    root.filter-triggered(text);
+                }
+            }
         }
 
-        Button {
-            text: "Increase value";
-            clicked => {
-                root.request-increase-value();
+        HorizontalBox {
+            lists := StandardListView {
+                model: root.items;
+            }
+
+            VerticalBox {
+                HorizontalBox {
+                    Text {
+                        text: "Name:      ";
+                        horizontal-alignment: left;
+                        vertical-alignment: center;
+                    }
+
+                    name-edit := LineEdit {
+                        placeholder-text: "name";
+                    }
+                }
+
+                HorizontalBox {
+                    Text {
+                        text: "Surname: ";
+                        horizontal-alignment: left;
+                        vertical-alignment: center;
+                    }
+
+                    surname-edit := LineEdit {
+                        placeholder-text: "surname";
+                    }
+                }
+            }
+        }
+
+        HorizontalBox {
+            Button {
+                text: "Create";
+                clicked => {
+                    root.create-clicked(name-edit.text,surname-edit.text,filter-edit.text);
+                }
+            }
+
+            Button {
+                text: "Update";
+                clicked => {
+                    root.update-clicked(root.items[lists.current-item],name-edit.text,surname-edit.text,filter-edit.text);
+                }
+            }
+
+            Button {
+                text: "Delete";
+                clicked => {
+                    root.delete-clicked(root.items[lists.current-item],filter-edit.text);
+                }
             }
         }
     }
