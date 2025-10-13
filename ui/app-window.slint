@@ -9,10 +9,12 @@ export component MainWindow inherits Window {
     in property <float> current-radius;
     in property <color> current-color;
 
-    callback add-circle(x: float, y: float);
+    callback start-drag(x: float, y: float);
+    callback update-drag(x: float, y: float);
+    callback end-drag(x: float, y: float);
     callback undo();
     callback redo();
-    callback apply-config(radius: float, color: color);
+    callback apply-config(color: color);
 
     VerticalBox {
         spacing: 8px;
@@ -43,12 +45,18 @@ export component MainWindow inherits Window {
 
             pointer-event(event) => {
                 if event.button == PointerEventButton.right {
+                    config_popup.x = self.mouse-x;
+                    config_popup.y = self.mouse-y;
                     config_popup.visible = true;
+                } else {
+                    if event.kind == PointerEventKind.down {
+                        root.start-drag(self.mouse-x / 1px,self.mouse-y / 1px);
+                    } else if event.kind == PointerEventKind.move {
+                        root.update-drag(self.mouse-x / 1px,self.mouse-y / 1px);
+                    } else if event.kind == PointerEventKind.up {
+                        root.end-drag(self.mouse-x / 1px,self.mouse-y / 1px);
+                    }
                 }
-            }
-
-            clicked => {
-                root.add-circle(self.mouse-x / 1px, self.mouse-y / 1px);
             }
         }
     }
@@ -73,18 +81,18 @@ export component MainWindow inherits Window {
                 VerticalBox {
                     spacing: 8px;
                     padding: 8px;
-                    Text {
-                        text: "Radius:";
-                    }
+                    // Text {
+                    //     text: "Radius:";
+                    // }
 
-                    Slider {
-                        minimum: 5;
-                        maximum: 100;
-                        value: temp_radius;
-                        changed(value) => {
-                            temp_radius = value;
-                        }
-                    }
+                    // Slider {
+                    //     minimum: 5;
+                    //     maximum: 100;
+                    //     value: temp_radius;
+                    //     changed(value) => {
+                    //         temp_radius = value;
+                    //     }
+                    // }
 
                     Text {
                         text: "Color (Red):";
@@ -104,7 +112,7 @@ export component MainWindow inherits Window {
                         StandardButton {
                             kind: yes;
                             clicked => {
-                                root.apply-config(temp_radius, temp_color);
+                                root.apply-config(temp_color);
                                 config_popup.visible = false;
                             }
                         }

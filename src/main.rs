@@ -50,12 +50,12 @@ fn main() {
 
     let app = MainWindow::new().unwrap();
 
-    let image = Rc::new(RefCell::new(RgbImage::from_pixel(
+    let base_image = Rc::new(RefCell::new(RgbImage::from_pixel(
         WIDTH,
         HEIGHT,
         Rgb([255, 255, 255]),
     )));
-
+    let preview_image = Rc::new(RefCell::new(base_image.borrow().clone()));
     let history = Rc::new(RefCell::new(History::default()));
 
     let config = Rc::new(RefCell::new(CircleConfig {
@@ -63,37 +63,112 @@ fn main() {
         color: Color::from_rgb_f32(1.0, 0.0, 0.0),
     }));
 
-    app.set_canvas_image(to_slint_image(&image.borrow()));
+    let is_dragging = Rc::new(RefCell::new(false));
+    let start_x = Rc::new(RefCell::new(0.0f32));
+    let start_y = Rc::new(RefCell::new(0.0f32));
+
+    app.set_canvas_image(to_slint_image(&base_image.borrow()));
     app.set_current_radius(config.borrow().radius);
     app.set_current_color(config.borrow().color);
 
-    // --- Add Circle ---
+    // --- Start Drag ---
     {
         let app_weak = app.as_weak();
-        let img = image.clone();
-        let hist = history.clone();
+        let img = preview_image.clone();
+        let base = base_image.clone();
+        let dragging = is_dragging.clone();
+        let sx = start_x.clone();
+        let sy = start_y.clone();
+
+        app.on_start_drag(move |x, y| {
+            *sx.borrow_mut() = x;
+            *sy.borrow_mut() = y;
+            *dragging.borrow_mut() = true;
+
+            *img.borrow_mut() = base.borrow().clone();
+
+            if let Some(app) = app_weak.upgrade() {
+                app.set_canvas_image(to_slint_image(&img.borrow()));
+            }
+        });
+    }
+
+    // --- Update Drag ---
+    {
+        let app_weak = app.as_weak();
+        let img = preview_image.clone();
+        let base = base_image.clone();
         let cfg = config.clone();
+        let dragging = is_dragging.clone();
+        let sx = start_x.clone();
+        let sy = start_y.clone();
 
-        app.on_add_circle(move |x, y| {
-            let mut img_ref = img.borrow_mut();
-            let mut h = hist.borrow_mut();
+        app.on_update_drag(move |x, y| {
+            if !*dragging.borrow() {
+                return;
+            }
+            let mut temp = base.borrow().clone();
 
-            h.undo_stack.push(img_ref.clone());
-            h.redo_stack.clear();
+            let dx = x - *sx.borrow();
+            let dy = y - *sy.borrow();
+            let radius = (dx * dx + dy * dy).sqrt() as u32;
 
-            let cfg_ref = cfg.borrow();
-            let radius = cfg_ref.radius as u32;
-            let color_rgba = cfg_ref.color.to_argb_u8();
+            let color_rgba = cfg.borrow().color.to_argb_u8();
             draw_circle(
-                &mut img_ref,
-                x as u32,
-                y as u32,
+                &mut temp,
+                *sx.borrow() as u32,
+                *sy.borrow() as u32,
                 radius,
                 Rgb([color_rgba.red, color_rgba.green, color_rgba.blue]),
             );
 
+            *img.borrow_mut() = temp;
+
             if let Some(app) = app_weak.upgrade() {
-                app.set_canvas_image(to_slint_image(&img_ref));
+                app.set_canvas_image(to_slint_image(&img.borrow()));
+            }
+        });
+    }
+
+    // --- End Drag ---
+    {
+        let app_weak = app.as_weak();
+        let img = preview_image.clone();
+        let base = base_image.clone();
+        let cfg = config.clone();
+        let hist = history.clone();
+        let dragging = is_dragging.clone();
+        let sx = start_x.clone();
+        let sy = start_y.clone();
+
+        app.on_end_drag(move |x, y| {
+            if !*dragging.borrow() {
+                return;
+            }
+            *dragging.borrow_mut() = false;
+
+            let mut base_ref = base.borrow_mut();
+            let mut h = hist.borrow_mut();
+            h.undo_stack.push(base_ref.clone());
+            h.redo_stack.clear();
+
+            let dx = x - *sx.borrow();
+            let dy = y - *sy.borrow();
+            let radius = (dx * dx + dy * dy).sqrt() as u32;
+
+            let color_rgba = cfg.borrow().color.to_argb_u8();
+            draw_circle(
+                &mut base_ref,
+                *sx.borrow() as u32,
+                *sy.borrow() as u32,
+                radius,
+                Rgb([color_rgba.red, color_rgba.green, color_rgba.blue]),
+            );
+
+            *img.borrow_mut() = base_ref.clone();
+
+            if let Some(app) = app_weak.upgrade() {
+                app.set_canvas_image(to_slint_image(&img.borrow()));
             }
         });
     }
@@ -101,16 +176,20 @@ fn main() {
     // --- Undo ---
     {
         let app_weak = app.as_weak();
-        let img = image.clone();
+        let base = base_image.clone();
+        let preview = preview_image.clone();
         let hist = history.clone();
+
         app.on_undo(move || {
             let mut h = hist.borrow_mut();
             if let Some(prev) = h.undo_stack.pop() {
-                let mut img_ref = img.borrow_mut();
-                h.redo_stack.push(img_ref.clone());
-                *img_ref = prev;
+                let mut base_ref = base.borrow_mut();
+                h.redo_stack.push(base_ref.clone());
+                *base_ref = prev.clone();
+                *preview.borrow_mut() = prev;
+
                 if let Some(app) = app_weak.upgrade() {
-                    app.set_canvas_image(to_slint_image(&img_ref));
+                    app.set_canvas_image(to_slint_image(&base_ref));
                 }
             }
         });
@@ -119,16 +198,20 @@ fn main() {
     // --- Redo ---
     {
         let app_weak = app.as_weak();
-        let img = image.clone();
+        let base = base_image.clone();
+        let preview = preview_image.clone();
         let hist = history.clone();
+
         app.on_redo(move || {
             let mut h = hist.borrow_mut();
             if let Some(next) = h.redo_stack.pop() {
-                let mut img_ref = img.borrow_mut();
-                h.undo_stack.push(img_ref.clone());
-                *img_ref = next;
+                let mut base_ref = base.borrow_mut();
+                h.undo_stack.push(base_ref.clone());
+                *base_ref = next.clone();
+                *preview.borrow_mut() = next;
+
                 if let Some(app) = app_weak.upgrade() {
-                    app.set_canvas_image(to_slint_image(&img_ref));
+                    app.set_canvas_image(to_slint_image(&base_ref));
                 }
             }
         });
@@ -137,9 +220,8 @@ fn main() {
     // --- Config ---
     {
         let cfg = config.clone();
-        app.on_apply_config(move |radius, color| {
+        app.on_apply_config(move |color| {
             let mut cfg_ref = cfg.borrow_mut();
-            cfg_ref.radius = radius;
             cfg_ref.color = color;
         });
     }
