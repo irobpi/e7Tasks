@@ -1,17 +1,122 @@
-import { Button,VerticalBox } from "std-widgets.slint";
+import { VerticalBox, HorizontalBox, Button, Slider, Palette, StandardButton } from "std-widgets.slint";
 
-export component AppWindow inherits Window {
-    in-out property <int> counter: 42;
-    callback request-increase-value();
+export component MainWindow inherits Window {
+    width: 800px;
+    height: 600px;
+    title: "Circle Drawer (Image Canvas)";
+
+    in-out property <image> canvas-image;
+    in property <float> current-radius;
+    in property <color> current-color;
+
+    callback add-circle(x: float, y: float);
+    callback undo();
+    callback redo();
+    callback apply-config(radius: float, color: color);
+
     VerticalBox {
-        Text {
-            text: "Counter: \{root.counter}";
+        spacing: 8px;
+        padding: 8px;
+
+        HorizontalBox {
+            spacing: 10px;
+            Button {
+                text: "Undo";
+                clicked => root.undo();
+            }
+
+            Button {
+                text: "Redo";
+                clicked => root.redo();
+            }
         }
 
-        Button {
-            text: "Increase value";
+        // Canvas
+        TouchArea {
+            width: 100%;
+            height: 100%;
+            image := Image {
+                source: root.canvas-image;
+                width: 100%;
+                height: 100%;
+            }
+
+            pointer-event(event) => {
+                if event.button == PointerEventButton.right {
+                    config_popup.visible = true;
+                }
+            }
+
             clicked => {
-                root.request-increase-value();
+                root.add-circle(self.mouse-x / 1px, self.mouse-y / 1px);
+            }
+        }
+    }
+
+    config_popup := Rectangle {
+        visible: false;
+        x: (root.width - self.width) / 2;
+        y: 100px;
+        width: min(circle_dialog.preferred-width,root.width - 80px);
+        height: min(circle_dialog.preferred-height + 80px,root.height);
+
+        Rectangle {
+            background: Palette.background;
+            border-color: Palette.border;
+            border-width: 1px;
+
+            circle_dialog := Dialog {
+                title: "Circle Configuration";
+                property <float> temp_radius: root.current-radius;
+                property <color> temp_color: root.current-color;
+
+                VerticalBox {
+                    spacing: 8px;
+                    padding: 8px;
+                    Text {
+                        text: "Radius:";
+                    }
+
+                    Slider {
+                        minimum: 5;
+                        maximum: 100;
+                        value: temp_radius;
+                        changed(value) => {
+                            temp_radius = value;
+                        }
+                    }
+
+                    Text {
+                        text: "Color (Red):";
+                    }
+
+                    Slider {
+                        minimum: 0;
+                        maximum: 255;
+                        value: temp_color.red * 255;
+                        changed(value) => {
+                            temp_color = rgb(value,0,0);
+                        }
+                    }
+
+                    HorizontalBox {
+                        spacing: 8px;
+                        StandardButton {
+                            kind: yes;
+                            clicked => {
+                                root.apply-config(temp_radius, temp_color);
+                                config_popup.visible = false;
+                            }
+                        }
+
+                        StandardButton {
+                            kind: no;
+                            clicked => {
+                                config_popup.visible = false;
+                            }
+                        }
+                    }
+                }
             }
         }
     }
