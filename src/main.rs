@@ -60,7 +60,7 @@ fn main() {
 
     let config = Rc::new(RefCell::new(CircleConfig {
         radius: 30.0,
-        color: Color::from_rgb_f32(1.0, 0.0, 0.0),
+        color: Color::from_rgb_u8(0, 0, 0),
     }));
 
     let is_dragging = Rc::new(RefCell::new(false));

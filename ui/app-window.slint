@@ -7,7 +7,7 @@ export component MainWindow inherits Window {
 
     in-out property <image> canvas-image;
     in property <float> current-radius;
-    in property <color> current-color;
+    in-out property <color> current-color;
 
     callback start-drag(x: float, y: float);
     callback update-drag(x: float, y: float);
@@ -45,11 +45,16 @@ export component MainWindow inherits Window {
 
             pointer-event(event) => {
                 if event.button == PointerEventButton.right {
-                    config_popup.x = self.mouse-x;
-                    config_popup.y = self.mouse-y;
-                    config_popup.visible = true;
+                    config-popup.x = self.mouse-x;
+                    config-popup.y = self.mouse-y;
+                    config-popup.visible = true;
                 } else {
                     if event.kind == PointerEventKind.down {
+                        if config-popup.visible {
+                            root.apply-config(circle-dialog.temp_color);
+                            config-popup.visible = false;
+                            root.current-color = circle-dialog.temp_color;
+                        }
                         root.start-drag(self.mouse-x / 1px,self.mouse-y / 1px);
                     } else if event.kind == PointerEventKind.move {
                         root.update-drag(self.mouse-x / 1px,self.mouse-y / 1px);
@@ -61,69 +66,119 @@ export component MainWindow inherits Window {
         }
     }
 
-    config_popup := Rectangle {
+    config-popup := Rectangle {
         visible: false;
         x: (root.width - self.width) / 2;
         y: 100px;
-        width: min(circle_dialog.preferred-width,root.width - 80px);
-        height: min(circle_dialog.preferred-height + 80px,root.height);
+        width: min(circle-dialog.preferred-width,root.width - 80px);
+        height: min(circle-dialog.preferred-height + 80px,root.height);
 
         Rectangle {
             background: Palette.background;
             border-color: Palette.border;
             border-width: 1px;
 
-            circle_dialog := Dialog {
+            circle-dialog := Dialog {
                 title: "Circle Configuration";
                 property <float> temp_radius: root.current-radius;
                 property <color> temp_color: root.current-color;
 
                 VerticalBox {
                     spacing: 8px;
-                    padding: 8px;
-                    // Text {
-                    //     text: "Radius:";
-                    // }
-
-                    // Slider {
-                    //     minimum: 5;
-                    //     maximum: 100;
-                    //     value: temp_radius;
-                    //     changed(value) => {
-                    //         temp_radius = value;
-                    //     }
-                    // }
-
-                    Text {
-                        text: "Color (Red):";
-                    }
-
-                    Slider {
-                        minimum: 0;
-                        maximum: 255;
-                        value: temp_color.red * 255;
-                        changed(value) => {
-                            temp_color = rgb(value,0,0);
-                        }
-                    }
+                    padding: 5px;
 
                     HorizontalBox {
-                        spacing: 8px;
-                        StandardButton {
-                            kind: yes;
-                            clicked => {
-                                root.apply-config(temp_color);
-                                config_popup.visible = false;
+                        padding: 3px;
+                        VerticalBox {
+                            spacing: 1px;
+                            padding: 1px;
+                            HorizontalBox {
+                                padding: 1px;
+                                Text {
+                                    preferred-width: 35px;
+                                    text: "R:\{Math.ceil(r-slider.value)}";
+                                    vertical-alignment: center;
+                                }
+
+                                r-slider := Slider {
+                                    preferred-width: 60px;
+                                    minimum: 0;
+                                    maximum: 255;
+                                    step: 1;
+                                    value: temp_color.red * 255;
+                                    changed(value) => {
+                                        temp_color = rgb(value,g-slider.value,b-slider.value);
+                                        color-palette.background = temp_color;
+                                    }
+                                }
+                            }
+
+                            HorizontalBox {
+                                padding: 1px;
+                                Text {
+                                    preferred-width: 35px;
+                                    text: "G:\{Math.ceil(g-slider.value)}";
+                                    vertical-alignment: center;
+                                }
+
+                                g-slider := Slider {
+                                    minimum: 0;
+                                    maximum: 255;
+                                    step: 1;
+                                    value: temp_color.green * 255;
+                                    changed(value) => {
+                                        temp_color = rgb(r-slider.value,value,b-slider.value);
+                                        color-palette.background = temp_color;
+                                    }
+                                }
+                            }
+
+                            HorizontalBox {
+                                padding: 1px;
+                                Text {
+                                    preferred-width: 35px;
+                                    text: "B:\{Math.ceil(b-slider.value)}";
+                                    vertical-alignment: center;
+                                }
+
+                                b-slider := Slider {
+                                    minimum: 0;
+                                    maximum: 255;
+                                    step: 1;
+                                    value: temp_color.blue * 255;
+                                    changed(value) => {
+                                        temp_color = rgb(r-slider.value,g-slider.value,value);
+                                        color-palette.background = temp_color;
+                                    }
+                                }
                             }
                         }
 
-                        StandardButton {
-                            kind: no;
-                            clicked => {
-                                config_popup.visible = false;
-                            }
+                        color-palette := Rectangle {
+                            preferred-width: 100px;
+                            preferred-height: 100px;
+                            border-radius: 50px;
+                            background: temp_color;
                         }
                     }
+
+                    // HorizontalBox {
+                    //     spacing: 8px;
+                    //     StandardButton {
+                    //         kind: yes;
+                    //         clicked => {
+                    //             root.apply-config(temp_color);
+                    //             config-popup.visible = false;
+                    //         }
+                    //     }
+
+                    //     StandardButton {
+                    //         kind: no;
+                    //         clicked => {
+                    //             config-popup.visible = false;
+                    //         }
+                    //     }
+                    // }
                 }
             }
         }
